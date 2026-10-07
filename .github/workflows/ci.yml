@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE: DynamicDave.Umbraco.ContentHealth
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/${{ env.PACKAGE }}/Client/package-lock.json
+
+      # Built as a separate step (not by the MSBuild BuildClient target), so the static web assets
+      # are on disk before MSBuild collects them.
+      - name: Build client
+        working-directory: src/${{ env.PACKAGE }}/Client
+        run: |
+          npm ci
+          npm run build
+
+      - name: Test
+        run: dotnet test tests/${{ env.PACKAGE }}.Tests -c Release -p:SkipClientBuild=true
+
+      - name: Pack
+        run: dotnet pack src/${{ env.PACKAGE }} -c Release -p:SkipClientBuild=true -p:ContinuousIntegrationBuild=true -o artifacts
+
+      # The package is built against its minimum Umbraco version, whose own dependencies may have advisories that
+      # sites on a newer 17.x never get. The TestSite installs the package on the latest Umbraco 17, like a real site.
+      - name: Check NuGet dependencies for known vulnerabilities
+        run: |
+          dotnet list tests/TestSite package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then exit 1; fi
+
+      - name: Check runtime npm dependencies for known vulnerabilities
+        working-directory: src/${{ env.PACKAGE }}/Client
+        run: npm audit --omit=dev --audit-level=high
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg

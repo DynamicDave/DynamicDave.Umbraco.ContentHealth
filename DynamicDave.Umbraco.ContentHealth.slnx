@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DynamicDave.Umbraco.ContentHealth/DynamicDave.Umbraco.ContentHealth.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DynamicDave.Umbraco.ContentHealth.Tests/DynamicDave.Umbraco.ContentHealth.Tests.csproj" />
+    <Project Path="tests/TestSite/TestSite.csproj" />
+  </Folder>
+</Solution>

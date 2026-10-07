@@ -1,0 +1,42 @@
+export const manifests: Array<UmbExtensionManifest> = [
+  {
+    type: 'localization',
+    alias: 'DynamicDave.ContentHealth.Localization.En',
+    name: 'Content Health English',
+    weight: -100,
+    meta: { culture: 'en' },
+    js: () => import('./localization/en.js'),
+  },
+  {
+    type: 'localization',
+    alias: 'DynamicDave.ContentHealth.Localization.Nl',
+    name: 'Content Health Dutch',
+    weight: -100,
+    meta: { culture: 'nl' },
+    js: () => import('./localization/nl.js'),
+  },
+  {
+    type: 'localization',
+    alias: 'DynamicDave.ContentHealth.Localization.De',
+    name: 'Content Health German',
+    weight: -100,
+    meta: { culture: 'de' },
+    js: () => import('./localization/de.js'),
+  },
+  {
+    type: 'localization',
+    alias: 'DynamicDave.ContentHealth.Localization.Fr',
+    name: 'Content Health French',
+    weight: -100,
+    meta: { culture: 'fr' },
+    js: () => import('./localization/fr.js'),
+  },
+  {
+    type: 'localization',
+    alias: 'DynamicDave.ContentHealth.Localization.Da',
+    name: 'Content Health Danish',
+    weight: -100,
+    meta: { culture: 'da' },
+    js: () => import('./localization/da.js'),
+  },
+];
