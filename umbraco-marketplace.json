@@ -1,0 +1,26 @@
+{
+  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "Title": "Content Health – Broken Links",
+  "Category": "Editor Tools",
+  "PackageType": "Package",
+  "LicenseTypes": [
+    "Free"
+  ],
+  "AuthorDetails": {
+    "Name": "'Dynamic' Dave Jonker",
+    "Description": "Umbraco developer from the Netherlands",
+    "Url": "https://github.com/dynamicdave",
+    "ImageUrl": "https://github.com/dynamicdave.png",
+    "SyncContributorsFromRepository": true
+  },
+  "Screenshots": [
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/link-health-dashboard.png",
+      "Caption": "All broken internal links with counts, filters and CSV export"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/link-health-document.png",
+      "Caption": "A page's broken links and the pages that link to it"
+    }
+  ]
+}
