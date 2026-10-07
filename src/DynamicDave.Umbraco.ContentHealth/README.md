@@ -15,7 +15,9 @@ Supported Umbraco versions: **17.x and 18.x** (net10.0), tested on 17.0.0, 17.7.
 
 ## How it works
 
-The package keeps an index of all internal links in its own table (`dynamicDaveContentHealthLink`, created by a package migration). A page is checked again when it is saved, published, unpublished or moved. Links to a page or media item are checked again when that item is published, unpublished, moved, trashed, restored or deleted. A full scan runs shortly after installation and every night, to catch anything the events missed.
+The package keeps an index of all internal links in its own table (`dynamicDaveContentHealthLink`, created by a package migration). A page is checked again when it is saved, published, unpublished, copied or restored from the recycle bin; a page and its descendants leave the index when they are moved to the recycle bin. Links to a page or media item are checked again when that item is published, unpublished, moved, trashed, restored or deleted. A full scan runs shortly after the site has started and handled its first request (Umbraco skips background jobs until it knows its application URL), and every night, to catch anything the events missed.
+
+Sites with `Umbraco:CMS:Unattended:PackageMigrationsUnattended` set to `false` must run the package migration from the backoffice (Packages section) before the table exists.
 
 A link that is only in a page's unpublished draft is listed as "Draft only", so you can fix it before publishing.
 
@@ -45,7 +47,7 @@ All settings are optional:
 | `ExcludedProperties` | `[]` | Property aliases that are not scanned. |
 | `ReportUnpublishedTargets` | `true` | `false`: links to unpublished pages are not reported, for sites that link ahead to pages published later. |
 
-Changes to the exclusions apply from the next scan.
+Changes to the exclusions and to `ReportUnpublishedTargets` apply to existing links after the next full scan (Scan now or the nightly scan).
 
 ## Permissions
 
@@ -63,10 +65,18 @@ Full scans and link status updates run on the scheduling server (or the single s
 - Only documents are scanned as a source, not media, members or Umbraco 18 library elements.
 - Only values without a segment are scanned.
 - The location of a link is the property and language, not the block inside the property.
-- When a page with descendants is moved to the recycle bin, the descendants' links are hidden right away and removed by the next full scan.
 - The Link health tab shows no count badge.
 - The Link health tab is not shown on a new document until it is saved.
 - Read-only: links are not changed or repaired.
+
+## Uninstall
+
+Removing the package leaves its data in the database: the table `dynamicDaveContentHealthLink`, the scan state and the package migration state in `umbracoKeyValue`. To remove them:
+
+```sql
+DROP TABLE dynamicDaveContentHealthLink;
+DELETE FROM umbracoKeyValue WHERE [key] LIKE 'DynamicDave.ContentHealth%' OR [key] = 'Umbraco.Core.Upgrader.State+DynamicDave.Umbraco.ContentHealth';
+```
 
 ## License
 
