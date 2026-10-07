@@ -12,6 +12,14 @@ public sealed class UmbracoTargetStateSource(
     IMediaNavigationQueryService mediaNavigation,
     IPublishStatusQueryService publishStatus) : ITargetStateSource
 {
+    // These two members are declared on IPublishStatusQueryService in Umbraco 17 but on its new base interface in 18,
+    // so a compiled call would throw MissingMethodException on one of the two. Bind them by name at runtime.
+    private readonly Func<Guid, string, bool> _isDocumentPublished =
+        InterfaceMethod.Bind<Func<Guid, string, bool>>(publishStatus, typeof(IPublishStatusQueryService), nameof(IPublishStatusQueryService.IsDocumentPublished));
+
+    private readonly Func<Guid, bool> _hasPublishedAncestorPath =
+        InterfaceMethod.Bind<Func<Guid, bool>>(publishStatus, typeof(IPublishStatusQueryService), nameof(IPublishStatusQueryService.HasPublishedAncestorPath));
+
     public TargetPresence GetPresence(Guid key, LinkTargetType type)
     {
         bool inTree, inBin;
@@ -31,7 +39,7 @@ public sealed class UmbracoTargetStateSource(
 
     // An empty culture makes Umbraco use the default language; an invariant document that is published counts as
     // published in every language.
-    public bool IsPublished(Guid documentKey, string? culture) => publishStatus.IsDocumentPublished(documentKey, culture ?? string.Empty);
+    public bool IsPublished(Guid documentKey, string? culture) => _isDocumentPublished(documentKey, culture ?? string.Empty);
 
-    public bool HasPublishedAncestorPath(Guid documentKey) => publishStatus.HasPublishedAncestorPath(documentKey);
+    public bool HasPublishedAncestorPath(Guid documentKey) => _hasPublishedAncestorPath(documentKey);
 }
