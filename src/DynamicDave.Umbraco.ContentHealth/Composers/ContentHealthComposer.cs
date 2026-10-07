@@ -1,6 +1,7 @@
 using DynamicDave.Umbraco.ContentHealth.Indexing;
 using DynamicDave.Umbraco.ContentHealth.Notifications;
 using DynamicDave.Umbraco.ContentHealth.Persistence;
+using DynamicDave.Umbraco.ContentHealth.Queries;
 using DynamicDave.Umbraco.ContentHealth.Scanning;
 using DynamicDave.Umbraco.ContentHealth.Status;
 using Microsoft.Extensions.Configuration;
@@ -29,6 +30,7 @@ public class ContentHealthComposer : IComposer
         builder.Services.AddSingleton<ScanStateStore>();
         builder.Services.AddSingleton<FullScanner>();
         builder.Services.AddRecurringBackgroundJob<FullScanJob>();
+        builder.Services.AddTransient<LinkQueryService>();
 
         builder.AddNotificationHandler<ContentSavedNotification, SourceChangeHandler>();
         builder.AddNotificationHandler<ContentPublishedNotification, SourceChangeHandler>();
