@@ -1,5 +1,14 @@
 export const manifests: Array<UmbExtensionManifest> = [
   {
+    type: 'dashboard',
+    alias: 'DynamicDave.ContentHealth.Dashboard',
+    name: 'Link Health Dashboard',
+    element: () => import('./link-health-dashboard.element.js'),
+    weight: -11,
+    meta: { label: '#ddContentHealth_title', pathname: 'link-health' },
+    conditions: [{ alias: 'Umb.Condition.SectionAlias', match: 'Umb.Section.Content' }],
+  },
+  {
     type: 'localization',
     alias: 'DynamicDave.ContentHealth.Localization.En',
     name: 'Content Health English',
