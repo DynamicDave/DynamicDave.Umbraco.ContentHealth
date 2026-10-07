@@ -24,6 +24,7 @@ const VERSIONS: Array<{ value: LinkVersionFilter; term: string }> = [
 @customElement('dd-link-health-dashboard')
 export class DdLinkHealthDashboardElement extends UmbLitElement {
   @state() private _summary?: LinkHealthSummaryResponse;
+  @state() private _summaryFailed = false;
   @state() private _items: BrokenLinkModel[] = [];
   @state() private _total = 0;
   @state() private _page = 1;
@@ -68,7 +69,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
     };
   }
 
-  async #loadItems() {
+  async #loadItems(clamped = false) {
     const requestId = ++this.#itemsRequest;
     this._loading = true;
     let items: BrokenLinkModel[] = [];
@@ -85,6 +86,13 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
       failed = true;
     }
     if (requestId !== this.#itemsRequest) return; // stale response
+    const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (!failed && !clamped && total > 0 && items.length === 0 && this._page > lastPage) {
+      // The list shrank (e.g. after a scan): show the last page instead of an empty one.
+      this._page = lastPage;
+      void this.#loadItems(true);
+      return;
+    }
     this._items = items;
     this._total = total;
     this._error = failed;
@@ -102,6 +110,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
     }
     if (requestId !== this.#summaryRequest || !this.#connected) return; // stale response or detached
     const wasBusy = this.#isBusy(this._summary);
+    this._summaryFailed = !summary;
     if (summary) this._summary = summary;
     if (this.#isBusy(this._summary)) {
       // Poll while a scan is requested or running; reload the list once it has finished.
@@ -214,7 +223,10 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
   }
 
   #renderTiles() {
-    const counts = this._summary?.counts ?? [];
+    // Zero tiles would read as "all clear".
+    if (this._summaryFailed) return html`<p>${this.localize.term('ddContentHealth_loadFailed')}</p>`;
+    if (!this._summary) return nothing;
+    const counts = this._summary.counts;
     const live = counts.reduce((sum, c) => sum + c.live, 0);
     const draft = counts.reduce((sum, c) => sum + c.draft, 0);
     const total = live + draft;
