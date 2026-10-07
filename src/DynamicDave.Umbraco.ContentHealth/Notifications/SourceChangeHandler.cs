@@ -16,6 +16,7 @@ internal sealed class SourceChangeHandler(LinkIndexer indexer, ILogger<SourceCha
     INotificationHandler<ContentPublishedNotification>,
     INotificationHandler<ContentUnpublishedNotification>,
     INotificationHandler<ContentMovedNotification>,
+    INotificationHandler<ContentCopiedNotification>,
     INotificationHandler<ContentMovedToRecycleBinNotification>,
     INotificationHandler<ContentDeletedNotification>,
     INotificationHandler<ContentEmptiedRecycleBinNotification>
@@ -30,6 +31,9 @@ internal sealed class SourceChangeHandler(LinkIndexer indexer, ILogger<SourceCha
     // from the recycle bin lost its rows (when it was trashed). Descendants are in the collection too.
     public void Handle(ContentMovedNotification notification)
         => Reindex(notification.MoveInfoCollection.Where(m => WasInRecycleBin(m.OriginalPath)).Select(m => m.Entity));
+
+    // A copy is saved without ContentSavedNotification; descendants raise their own notification.
+    public void Handle(ContentCopiedNotification notification) => Reindex([notification.Copy]);
 
     // Descendants keep their rows until the next full scan; sources in the recycle bin are hidden when querying.
     public void Handle(ContentMovedToRecycleBinNotification notification) => Remove(notification.MoveInfoCollection.Select(m => m.Entity.Key));

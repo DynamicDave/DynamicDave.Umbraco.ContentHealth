@@ -36,6 +36,7 @@ public class ContentHealthComposer : IComposer
         builder.AddNotificationHandler<ContentPublishedNotification, SourceChangeHandler>();
         builder.AddNotificationHandler<ContentUnpublishedNotification, SourceChangeHandler>();
         builder.AddNotificationHandler<ContentMovedNotification, SourceChangeHandler>();
+        builder.AddNotificationHandler<ContentCopiedNotification, SourceChangeHandler>();
         builder.AddNotificationHandler<ContentMovedToRecycleBinNotification, SourceChangeHandler>();
         builder.AddNotificationHandler<ContentDeletedNotification, SourceChangeHandler>();
         builder.AddNotificationHandler<ContentEmptiedRecycleBinNotification, SourceChangeHandler>();
