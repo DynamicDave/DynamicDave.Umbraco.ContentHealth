@@ -25,23 +25,24 @@ public sealed class LinkQueryService(
     private const int BatchSize = 1000;
     private static readonly LinkStatus[] ProblemStatuses = [LinkStatus.Missing, LinkStatus.Trashed, LinkStatus.Unpublished];
 
-    public IReadOnlyList<BrokenLinkModel> GetVisibleProblems(IUser user) => Resolve(repository.GetProblems(), user).Visible;
+    public IReadOnlyList<BrokenLinkModel> GetVisibleProblems(IUser user) => ToModels(FilterVisible(repository.GetProblems(), user));
 
     public LinkHealthSummaryResponse GetSummary(IUser user, ScanStatusModel scan, bool canStartScan)
     {
-        var problems = GetVisibleProblems(user);
+        // Counts and document types only: no breadcrumbs, target names or property names.
+        var visible = FilterVisible(repository.GetProblems(), user);
         return new LinkHealthSummaryResponse
         {
             Counts = ProblemStatuses
                 .Select(status => new StatusCountModel
                 {
                     Status = status,
-                    Live = problems.Count(p => p.Status == status && !p.IsDraft),
-                    Draft = problems.Count(p => p.Status == status && p.IsDraft),
+                    Live = visible.Rows.Count(r => r.Status == (int)status && !r.IsDraft),
+                    Draft = visible.Rows.Count(r => r.Status == (int)status && r.IsDraft),
                 })
                 .ToList(),
-            DocumentTypes = problems
-                .Select(p => p.SourceDocumentTypeAlias)
+            DocumentTypes = visible.Sources.Values
+                .Select(ContentTypeAlias)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select(alias => new DocumentTypeOptionModel { Alias = alias, Name = contentTypeService.Get(alias)?.Name ?? alias })
                 .OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -54,8 +55,8 @@ public sealed class LinkQueryService(
     /// <summary>Broken links in the document, and every visible link to it. The caller checks access to the document.</summary>
     public DocumentLinkHealthResponse GetDocument(Guid documentKey, IUser user)
     {
-        var outgoing = Resolve(repository.GetBySource(documentKey).Where(r => r.Status != (int)LinkStatus.Ok).ToList(), user).Visible;
-        var incoming = Resolve(repository.GetByTarget(documentKey).Where(r => r.SourceKey != documentKey).ToList(), user);
+        var outgoing = ToModels(FilterVisible(repository.GetBySource(documentKey).Where(r => r.Status != (int)LinkStatus.Ok).ToList(), user));
+        var incoming = FilterVisible(repository.GetByTarget(documentKey).Where(r => r.SourceKey != documentKey).ToList(), user);
 
         return new DocumentLinkHealthResponse
         {
@@ -63,7 +64,7 @@ public sealed class LinkQueryService(
                 .OrderBy(l => l.PropertyName, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(l => l.Culture, StringComparer.Ordinal)
                 .ToList(),
-            Incoming = incoming.Visible
+            Incoming = ToModels(incoming)
                 .OrderBy(l => l.SourceName, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(l => l.PropertyName, StringComparer.CurrentCultureIgnoreCase)
                 .Select(l => new IncomingLinkModel
@@ -80,11 +81,11 @@ public sealed class LinkQueryService(
         };
     }
 
-    private (List<BrokenLinkModel> Visible, int HiddenSourceCount) Resolve(IReadOnlyCollection<LinkDto> rows, IUser user)
+    private Visibility FilterVisible(IReadOnlyCollection<LinkDto> rows, IUser user)
     {
         if (rows.Count == 0)
         {
-            return ([], 0);
+            return new Visibility([], [], 0);
         }
 
         var sources = GetEntities(UmbracoObjectTypes.Document, rows.Select(r => r.SourceKey));
@@ -92,37 +93,65 @@ public sealed class LinkQueryService(
         // HasContentRootAccess is not publicly available in 17.x; root access is signalled by start node -1.
         var calculated = user.CalculateContentStartNodeIds(entityService, appCaches);
         var startNodes = StartNodeAccess.Resolve(calculated?.Contains(-1) == true, calculated);
-        var browseByPath = new Dictionary<string, bool>();
-        bool CanBrowse(IEntitySlim source)
-        {
-            if (!StartNodeAccess.CanSee(source.Path, startNodes))
-            {
-                return false;
-            }
-
-            if (!browseByPath.TryGetValue(source.Path, out var allowed))
-            {
-                allowed = userService.GetPermissionsForPath(user, source.Path).GetAllPermissions().Contains(ActionBrowse.ActionLetter);
-                browseByPath[source.Path] = allowed;
-            }
-
-            return allowed;
-        }
+        var canBrowse = BrowsePermission(user);
 
         var existing = sources.Values.Where(s => !s.Trashed).ToList();
-        var visibleSources = existing.Where(CanBrowse).ToDictionary(s => s.Key);
-        var hidden = existing.Count - visibleSources.Count;
-
+        var visibleSources = existing
+            .Where(s => StartNodeAccess.CanSee(s.Path, startNodes) && canBrowse(s.Path))
+            .ToDictionary(s => s.Key);
         var visibleRows = rows.Where(r => visibleSources.ContainsKey(r.SourceKey)).ToList();
-        var documents = GetEntities(UmbracoObjectTypes.Document, visibleRows.Where(r => r.TargetType == (int)LinkTargetType.Document).Select(r => r.TargetKey));
-        var media = GetEntities(UmbracoObjectTypes.Media, visibleRows.Where(r => r.TargetType == (int)LinkTargetType.Media).Select(r => r.TargetKey));
-        var ancestorNames = AncestorNames(visibleSources.Values);
+
+        return new Visibility(visibleRows, visibleSources, existing.Count - visibleSources.Count);
+    }
+
+    /// <summary>Browse by document path, with as few permission queries as possible.</summary>
+    private Func<string, bool> BrowsePermission(IUser user)
+    {
+        var groups = user.Groups.ToList();
+        if (BrowseAccess.ForAllDocuments(groups) is { } allowed)
+        {
+            return _ => allowed;
+        }
+
+        // Granular permissions: only the nodes on the path that have them change the result, so ask Umbraco once per
+        // deciding path instead of once per document.
+        var byDefault = BrowseAccess.ByDefault(groups);
+        var granularNodeIds = GetEntities(UmbracoObjectTypes.Document, BrowseAccess.GranularDocumentKeys(groups))
+            .Values.Select(e => e.Id).ToHashSet();
+        var byDecidingPath = new Dictionary<string, bool>();
+        return path =>
+        {
+            if (BrowseAccess.DecidingPath(path, granularNodeIds) is not { } decidingPath)
+            {
+                return byDefault;
+            }
+
+            if (!byDecidingPath.TryGetValue(decidingPath, out var browse))
+            {
+                browse = userService.GetPermissionsForPath(user, decidingPath).GetAllPermissions().Contains(ActionBrowse.ActionLetter);
+                byDecidingPath[decidingPath] = browse;
+            }
+
+            return browse;
+        };
+    }
+
+    private List<BrokenLinkModel> ToModels(Visibility visible)
+    {
+        if (visible.Rows.Count == 0)
+        {
+            return [];
+        }
+
+        var documents = GetEntities(UmbracoObjectTypes.Document, visible.Rows.Where(r => r.TargetType == (int)LinkTargetType.Document).Select(r => r.TargetKey));
+        var media = GetEntities(UmbracoObjectTypes.Media, visible.Rows.Where(r => r.TargetType == (int)LinkTargetType.Media).Select(r => r.TargetKey));
+        var ancestorNames = AncestorNames(visible.Sources.Values);
         var propertyNames = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
-        var models = visibleRows.Select(row =>
+        return visible.Rows.Select(row =>
         {
-            var source = visibleSources[row.SourceKey];
-            var contentTypeAlias = (source as IContentEntitySlim)?.ContentTypeAlias ?? string.Empty;
+            var source = visible.Sources[row.SourceKey];
+            var contentTypeAlias = ContentTypeAlias(source);
             var targets = row.TargetType == (int)LinkTargetType.Media ? media : documents;
             return new BrokenLinkModel
             {
@@ -141,9 +170,9 @@ public sealed class LinkQueryService(
                 CheckedUtc = DateTime.SpecifyKind(row.CheckedUtc, DateTimeKind.Utc),
             };
         }).ToList();
-
-        return (models, hidden);
     }
+
+    private static string ContentTypeAlias(IEntitySlim source) => (source as IContentEntitySlim)?.ContentTypeAlias ?? string.Empty;
 
     private Dictionary<Guid, IEntitySlim> GetEntities(UmbracoObjectTypes type, IEnumerable<Guid> keys)
         => keys.Distinct().Chunk(BatchSize)
@@ -183,4 +212,6 @@ public sealed class LinkQueryService(
 
         return names.TryGetValue(propertyAlias, out var name) ? name : propertyAlias;
     }
+
+    private sealed record Visibility(List<LinkDto> Rows, Dictionary<Guid, IEntitySlim> Sources, int HiddenSourceCount);
 }
