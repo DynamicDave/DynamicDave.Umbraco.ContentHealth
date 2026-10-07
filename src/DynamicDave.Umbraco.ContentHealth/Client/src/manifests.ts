@@ -15,7 +15,10 @@ export const manifests: Array<UmbExtensionManifest> = [
     element: () => import('./link-health-document.element.js'),
     weight: 140,
     meta: { label: '#ddContentHealth_tab', pathname: 'link-health', icon: 'icon-unlink' },
-    conditions: [{ alias: 'Umb.Condition.WorkspaceAlias', match: 'Umb.Workspace.Document' }],
+    conditions: [
+      { alias: 'Umb.Condition.WorkspaceAlias', match: 'Umb.Workspace.Document' },
+      { alias: 'Umb.Condition.WorkspaceEntityIsNew', match: false },
+    ],
   },
   {
     type: 'localization',

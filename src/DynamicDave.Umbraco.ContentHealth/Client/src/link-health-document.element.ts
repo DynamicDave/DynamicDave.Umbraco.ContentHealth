@@ -23,6 +23,9 @@ export class DdLinkHealthDocumentElement extends UmbLitElement {
         (unique) => {
           if (unique && unique !== this.#key) {
             this.#key = unique;
+            // Never show the previous document's tables under a new document.
+            this._data = undefined;
+            this._error = false;
             void this.#load();
           }
         },
