@@ -5,7 +5,8 @@ namespace DynamicDave.Umbraco.ContentHealth.Status;
 
 /// <summary>
 /// Reads Umbraco's in-memory navigation and publish status. Both are updated by the content and media cache
-/// refreshers before ContentCacheRefresherNotification / MediaCacheRefresherNotification is published.
+/// refreshers before ContentCacheRefresherNotification / MediaCacheRefresherNotification is published (except the
+/// publish status after a restore from the recycle bin on Umbraco 17.2+, which TargetChangeHandler repairs).
 /// </summary>
 public sealed class UmbracoTargetStateSource(
     IDocumentNavigationQueryService documentNavigation,

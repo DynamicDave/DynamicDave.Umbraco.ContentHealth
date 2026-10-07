@@ -13,7 +13,8 @@ namespace DynamicDave.Umbraco.ContentHealth.Notifications;
 
 /// <summary>
 /// Recalculates the status of links to documents and media that changed. Cache refresher notifications are published
-/// after Umbraco has updated its in-memory navigation and publish status, so the status checks see the new state.
+/// after Umbraco has updated its in-memory navigation and publish status, so the status checks see the new state
+/// (except after a restore from the recycle bin on Umbraco 17.2+, which this handler repairs first).
 /// </summary>
 internal sealed class TargetChangeHandler(
     LinkIndexer indexer,
