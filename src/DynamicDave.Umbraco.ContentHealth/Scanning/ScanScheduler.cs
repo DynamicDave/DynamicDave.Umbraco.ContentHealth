@@ -35,18 +35,32 @@ internal static class ScanScheduler
     public static DateTime LastScheduledUtc(DateTime nowUtc, TimeOnly time, TimeZoneInfo timeZone)
     {
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, timeZone);
-        var scheduled = DateTime.SpecifyKind(nowLocal.Date + time.ToTimeSpan(), DateTimeKind.Unspecified);
-        if (scheduled > nowLocal)
+        var candidate = DateTime.SpecifyKind(nowLocal.Date + time.ToTimeSpan(), DateTimeKind.Unspecified);
+
+        var utc = ToUtc(candidate, timeZone);
+        if (utc > nowUtc)
         {
-            scheduled = scheduled.AddDays(-1);
+            utc = ToUtc(candidate.AddDays(-1), timeZone);
         }
 
+        return utc;
+    }
+
+    private static DateTime ToUtc(DateTime local, TimeZoneInfo timeZone)
+    {
         // A time inside the daylight saving gap does not exist; use the same time one hour later.
-        if (timeZone.IsInvalidTime(scheduled))
+        if (timeZone.IsInvalidTime(local))
         {
-            scheduled = scheduled.AddHours(1);
+            local = local.AddHours(1);
+        }
+        // An ambiguous time during fall-back exists twice; use the first (earlier) occurrence.
+        else if (timeZone.IsAmbiguousTime(local))
+        {
+            var offsets = timeZone.GetAmbiguousTimeOffsets(local);
+            var firstOffset = offsets.Max(); // Maximum offset is the first (earlier) occurrence
+            return DateTime.SpecifyKind(local - firstOffset, DateTimeKind.Utc);
         }
 
-        return TimeZoneInfo.ConvertTimeToUtc(scheduled, timeZone);
+        return TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
     }
 }

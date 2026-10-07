@@ -67,4 +67,47 @@ public class ScanSchedulerTests
         Assert.Equal(new DateTime(2026, 3, 29, 1, 30, 0, DateTimeKind.Utc), scheduled); // shifted to 03:30 CEST
         Assert.True(ScanScheduler.ShouldStart(Idle(new DateTime(2026, 3, 28, 1, 0, 0, DateTimeKind.Utc)), now, new TimeOnly(2, 30), amsterdam));
     }
+
+    [Fact]
+    public void Spring_forward_scheduled_time_never_after_now()
+    {
+        var amsterdam = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
+        var now = new DateTime(2026, 3, 29, 1, 10, 0, DateTimeKind.Utc); // 03:10 CEST (clocks went from 02:00 to 03:00)
+
+        var scheduled = ScanScheduler.LastScheduledUtc(now, new TimeOnly(2, 30), amsterdam);
+
+        // Scheduled 02:30 (invalid, shifts to 03:30 CEST) on today would be 01:30 UTC > now
+        // So it should go back to yesterday's 03:30 CET = 01:30 UTC
+        Assert.Equal(new DateTime(2026, 3, 28, 1, 30, 0, DateTimeKind.Utc), scheduled);
+        Assert.True(scheduled <= now);
+
+        // Scan started at 01:00 UTC (03:00 CEST) should not start again before 02:30 (03:30 CEST = 01:30 UTC)
+        Assert.False(ScanScheduler.ShouldStart(Idle(new DateTime(2026, 3, 29, 1, 0, 0, DateTimeKind.Utc)), now, new TimeOnly(2, 30), amsterdam));
+    }
+
+    [Fact]
+    public void Fall_back_scheduled_time_uses_first_occurrence()
+    {
+        var amsterdam = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
+        var now = new DateTime(2026, 10, 25, 0, 40, 0, DateTimeKind.Utc); // 02:40 CEST (first occurrence)
+
+        var scheduled = ScanScheduler.LastScheduledUtc(now, new TimeOnly(2, 30), amsterdam);
+
+        // 02:30 is ambiguous on fall-back day; use the first (earlier) occurrence: 02:30 CEST = 00:30 UTC
+        Assert.Equal(new DateTime(2026, 10, 25, 0, 30, 0, DateTimeKind.Utc), scheduled);
+    }
+
+    [Fact]
+    public void Fall_back_no_repeat_in_second_hour()
+    {
+        var amsterdam = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
+        var now = new DateTime(2026, 10, 25, 1, 40, 0, DateTimeKind.Utc); // 02:40 CET (second occurrence, after clocks went back)
+
+        // Even in the second occurrence, the last scheduled time is at 02:30 CEST (first occurrence) = 00:30 UTC
+        var scheduled = ScanScheduler.LastScheduledUtc(now, new TimeOnly(2, 30), amsterdam);
+        Assert.Equal(new DateTime(2026, 10, 25, 0, 30, 0, DateTimeKind.Utc), scheduled);
+
+        // Scan started at 00:40 UTC (02:40 CEST, first occurrence) is after the last scheduled 00:30 UTC, so no repeat
+        Assert.False(ScanScheduler.ShouldStart(Idle(new DateTime(2026, 10, 25, 0, 40, 0, DateTimeKind.Utc)), now, new TimeOnly(2, 30), amsterdam));
+    }
 }
