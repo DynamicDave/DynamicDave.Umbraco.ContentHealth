@@ -40,15 +40,18 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
   #itemsRequest = 0;
   #summaryRequest = 0;
   #pollTimer?: ReturnType<typeof setTimeout>;
+  #connected = false;
 
   override connectedCallback() {
     super.connectedCallback();
+    this.#connected = true;
     void this.#loadSummary();
     void this.#loadItems();
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.#connected = false;
     clearTimeout(this.#pollTimer);
     // Invalidate in-flight requests so they do not update a detached element.
     this.#itemsRequest++;
@@ -97,7 +100,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
     } catch {
       summary = undefined;
     }
-    if (requestId !== this.#summaryRequest) return; // stale response
+    if (requestId !== this.#summaryRequest || !this.#connected) return; // stale response or detached
     const wasBusy = this.#isBusy(this._summary);
     if (summary) this._summary = summary;
     if (this.#isBusy(this._summary)) {
@@ -121,6 +124,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
       // The summary shows the current state.
     }
     this._requestingScan = false;
+    if (!this.#connected) return;
     await this.#loadSummary();
   }
 
@@ -211,7 +215,9 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
 
   #renderTiles() {
     const counts = this._summary?.counts ?? [];
-    const total = counts.reduce((sum, c) => sum + c.live + c.draft, 0);
+    const live = counts.reduce((sum, c) => sum + c.live, 0);
+    const draft = counts.reduce((sum, c) => sum + c.draft, 0);
+    const total = live + draft;
     return html`
       <div class="tiles">
         ${counts.map(
@@ -230,6 +236,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
           @click=${() => this.#applyFilter(() => (this._status = undefined))}>
           <span class="count">${total}</span>
           <span class="label">${this.localize.term('ddContentHealth_total')}</span>
+          <span class="split">${this.localize.term('ddContentHealth_liveDraft', live, draft)}</span>
         </button>
       </div>
     `;
@@ -242,7 +249,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
         <uui-select
           label=${this.localize.term('ddContentHealth_version')}
           .options=${VERSIONS.map((v) => ({ name: this.localize.term(v.term), value: v.value, selected: v.value === this._version }))}
-          @change=${(e: UUISelectEvent) => this.#applyFilter(() => (this._version = e.target.value as LinkVersionFilter))}></uui-select>
+          @change=${(e: UUISelectEvent) => this.#applyFilter(() => (this._version = (e.target.value as LinkVersionFilter) || 'All'))}></uui-select>
         <uui-select
           label=${this.localize.term('ddContentHealth_documentType')}
           .options=${[
@@ -258,7 +265,10 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
   #renderList() {
     if (this._loading && this._items.length === 0) return html`<uui-loader></uui-loader>`;
     if (this._error) return html`<p>${this.localize.term('ddContentHealth_loadFailed')}</p>`;
-    if (this._items.length === 0) return html`<p>${this.localize.term('ddContentHealth_empty')}</p>`;
+    if (this._items.length === 0) {
+      const neverScanned = this._summary?.scan.neverScanned === true;
+      return html`<p>${this.localize.term(neverScanned ? 'ddContentHealth_neverScanned' : 'ddContentHealth_empty')}</p>`;
+    }
     const pages = Math.max(1, Math.ceil(this._total / PAGE_SIZE));
     return html`
       <uui-table>
@@ -280,7 +290,7 @@ export class DdLinkHealthDashboardElement extends UmbLitElement {
               <uui-table-cell>${targetTemplate(this.localize, l)}</uui-table-cell>
               <uui-table-cell>
                 <uui-tag color=${statusColor(l.status)}>${this.localize.term(statusTerm(l.status))}</uui-tag>
-                ${l.isDraft ? html`<uui-tag look="outline">${this.localize.term('ddContentHealth_draft')}</uui-tag>` : nothing}
+                <uui-tag look="outline">${this.localize.term(l.isDraft ? 'ddContentHealth_draft' : 'ddContentHealth_live')}</uui-tag>
               </uui-table-cell>
             </uui-table-row>
           `,
