@@ -9,6 +9,7 @@ namespace DynamicDave.Umbraco.ContentHealth.Indexing;
 public sealed class LinkIndexer(
     ContentLinkReader reader,
     TargetStatusResolver resolver,
+    ITargetStateSource stateSource,
     LinkIndexRepository repository,
     IOptionsMonitor<ContentHealthOptions> options,
     TimeProvider timeProvider)
@@ -56,8 +57,38 @@ public sealed class LinkIndexer(
         return changed;
     }
 
-    /// <summary>Recalculates the status of every row; the status checks are in-memory, so this is cheap.</summary>
+    /// <summary>Recalculates the status of every row.</summary>
     public int RefreshAllTargets() => RefreshTargets(repository.GetDistinctTargetKeys());
+
+    /// <summary>
+    /// After deletions: recalculates only the rows of targets that no longer exist or are now in the recycle bin.
+    /// Reads the distinct targets once and checks their presence in memory.
+    /// </summary>
+    public int RefreshVanishedTargets() => RefreshTargets(SelectVanishedTargets(repository.GetTargetsNotMissing(), stateSource));
+
+    /// <summary>Targets whose rows are out of date: gone while not reported Missing, or in the recycle bin while not reported Trashed.</summary>
+    internal static IReadOnlyList<Guid> SelectVanishedTargets(IEnumerable<LinkTargetDto> targets, ITargetStateSource stateSource)
+    {
+        var presence = new Dictionary<(Guid, int), TargetPresence>();
+        var vanished = new HashSet<Guid>();
+        foreach (var target in targets)
+        {
+            var key = (target.TargetKey, target.TargetType);
+            if (!presence.TryGetValue(key, out var current))
+            {
+                current = stateSource.GetPresence(target.TargetKey, (LinkTargetType)target.TargetType);
+                presence[key] = current;
+            }
+
+            if (current == TargetPresence.Missing
+                || (current == TargetPresence.InRecycleBin && target.Status != (int)LinkStatus.Trashed))
+            {
+                vanished.Add(target.TargetKey);
+            }
+        }
+
+        return vanished.ToList();
+    }
 
     private int Refresh(IReadOnlyCollection<LinkDto> rows)
     {

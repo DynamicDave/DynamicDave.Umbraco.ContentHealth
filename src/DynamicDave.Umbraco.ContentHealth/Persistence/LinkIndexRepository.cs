@@ -51,7 +51,16 @@ public sealed class LinkIndexRepository(IScopeProvider scopeProvider)
 
     public List<Guid> GetDistinctSourceKeys() => FetchKeys($"SELECT DISTINCT sourceKey FROM {LinkDto.TableName}");
 
-    /// <summary>Writes the status and checked time of the given rows.</summary>
+    /// <summary>The distinct targets and statuses of all rows whose status is not <see cref="LinkStatus.Missing"/>.</summary>
+    public List<LinkTargetDto> GetTargetsNotMissing()
+    {
+        using var scope = scopeProvider.CreateScope(autoComplete: true);
+        return scope.Database.Fetch<LinkTargetDto>(
+            $"SELECT DISTINCT targetKey, targetType, status FROM {LinkDto.TableName} WHERE status <> @0",
+            (int)LinkStatus.Missing);
+    }
+
+    /// <summary>Writes the status and checked time of the given rows, one statement per status, checked time and batch.</summary>
     public void UpdateStatuses(IReadOnlyCollection<LinkDto> rows)
     {
         if (rows.Count == 0)
@@ -60,9 +69,14 @@ public sealed class LinkIndexRepository(IScopeProvider scopeProvider)
         }
 
         using var scope = scopeProvider.CreateScope();
-        foreach (var row in rows)
+        foreach (var group in rows.GroupBy(r => (r.Status, r.CheckedUtc)))
         {
-            scope.Database.Update(row, ["status", "checkedUtc"]);
+            foreach (var ids in group.Select(r => r.Id).Chunk(BatchSize))
+            {
+                scope.Database.Execute(scope.SqlContext.Sql()
+                    .Update<LinkDto>(u => u.Set(x => x.Status, group.Key.Status).Set(x => x.CheckedUtc, group.Key.CheckedUtc))
+                    .WhereIn<LinkDto>(x => x.Id, ids));
+            }
         }
 
         scope.Complete();

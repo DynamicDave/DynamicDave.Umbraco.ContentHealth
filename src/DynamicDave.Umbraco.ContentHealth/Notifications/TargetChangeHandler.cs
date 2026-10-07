@@ -93,16 +93,20 @@ internal sealed class TargetChangeHandler(
         {
             prepare?.Invoke();
 
-            // Descendants of a removed item are no longer in the navigation, so recalculate everything. The checks are
-            // in-memory and only changed rows are written.
-            if (changes is null || changes.Any(c => c.Key is null || (c.Types & (TreeChangeTypes.RefreshAll | TreeChangeTypes.Remove)) != 0))
+            if (changes is null || changes.Any(c => (c.Types & TreeChangeTypes.RefreshAll) != 0))
             {
                 indexer.RefreshAllTargets();
                 return;
             }
 
+            // Descendants of a removed item are no longer in the navigation, so look for every target that vanished.
+            if (changes.Any(c => c.Key is null || (c.Types & TreeChangeTypes.Remove) != 0))
+            {
+                indexer.RefreshVanishedTargets();
+            }
+
             var keys = new HashSet<Guid>();
-            foreach (var change in changes)
+            foreach (var change in changes.Where(c => c.Key is not null && (c.Types & TreeChangeTypes.Remove) == 0))
             {
                 var key = change.Key!.Value;
                 keys.Add(key);
