@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace DynamicDave.Umbraco.ContentHealth.Scanning;
 
+[JsonConverter(typeof(JsonStringEnumConverter<ScanPhase>))]
 public enum ScanPhase
 {
     Idle,

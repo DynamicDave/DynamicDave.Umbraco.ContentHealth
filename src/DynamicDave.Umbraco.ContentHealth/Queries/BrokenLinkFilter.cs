@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
 using DynamicDave.Umbraco.ContentHealth.Models;
 
 namespace DynamicDave.Umbraco.ContentHealth.Queries;
 
+[JsonConverter(typeof(JsonStringEnumConverter<LinkVersionFilter>))]
 public enum LinkVersionFilter
 {
     All,
@@ -9,6 +11,7 @@ public enum LinkVersionFilter
     Draft,
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<BrokenLinkOrder>))]
 public enum BrokenLinkOrder
 {
     Source,
