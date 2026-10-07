@@ -9,6 +9,15 @@ export const manifests: Array<UmbExtensionManifest> = [
     conditions: [{ alias: 'Umb.Condition.SectionAlias', match: 'Umb.Section.Content' }],
   },
   {
+    type: 'workspaceView',
+    alias: 'DynamicDave.ContentHealth.WorkspaceView',
+    name: 'Link Health Workspace View',
+    element: () => import('./link-health-document.element.js'),
+    weight: 140,
+    meta: { label: '#ddContentHealth_tab', pathname: 'link-health', icon: 'icon-unlink' },
+    conditions: [{ alias: 'Umb.Condition.WorkspaceAlias', match: 'Umb.Workspace.Document' }],
+  },
+  {
     type: 'localization',
     alias: 'DynamicDave.ContentHealth.Localization.En',
     name: 'Content Health English',
