@@ -25,13 +25,6 @@ internal sealed class TargetChangeHandler(
     INotificationHandler<ContentCacheRefresherNotification>,
     INotificationHandler<MediaCacheRefresherNotification>
 {
-    // Declared on IPublishStatusManagementService in Umbraco 17 but on its new base interface in 18, so bind it by name.
-    private readonly Func<Guid, CancellationToken, Task> _reloadPublishStatus =
-        InterfaceMethod.Bind<Func<Guid, CancellationToken, Task>>(
-            publishStatusManagement,
-            typeof(IPublishStatusManagementService),
-            nameof(IPublishStatusManagementService.AddOrUpdateStatusWithDescendantsAsync));
-
     public void Handle(ContentCacheRefresherNotification notification)
     {
         var payloads = notification.MessageObject as ContentCacheRefresher.JsonPayload[];
@@ -67,11 +60,41 @@ internal sealed class TargetChangeHandler(
 
     // Umbraco 17.2+ does not refresh its publish status cache for tree changes without cultures. A restore from the
     // recycle bin unpublishes the document without them, so the cache would keep saying "published".
+    // Failures are logged per key, so the status recalculation still runs.
     private void ReloadPublishStatus(IEnumerable<ContentCacheRefresher.JsonPayload> payloads)
     {
-        foreach (var key in KeysNeedingPublishStatusReload(payloads))
+        var keys = KeysNeedingPublishStatusReload(payloads);
+        if (keys.Count == 0)
         {
-            _reloadPublishStatus(key, CancellationToken.None).GetAwaiter().GetResult();
+            return;
+        }
+
+        Func<Guid, CancellationToken, Task> reload;
+        try
+        {
+            // Declared on IPublishStatusManagementService in Umbraco 17 but on its new base interface in 18, so bind
+            // it by name, only when needed.
+            reload = InterfaceMethod.Bind<Func<Guid, CancellationToken, Task>>(
+                publishStatusManagement,
+                typeof(IPublishStatusManagementService),
+                nameof(IPublishStatusManagementService.AddOrUpdateStatusWithDescendantsAsync));
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Content health could not reload Umbraco's publish status after a restore; links to restored documents may count as published until they change again");
+            return;
+        }
+
+        foreach (var key in keys)
+        {
+            try
+            {
+                reload(key, CancellationToken.None).GetAwaiter().GetResult();
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Content health could not reload Umbraco's publish status of document {DocumentKey}", key);
+            }
         }
     }
 
