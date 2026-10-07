@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Notifications;
+using UmbracoConstants = Umbraco.Cms.Core.Constants;
 
 namespace DynamicDave.Umbraco.ContentHealth.Notifications;
 
@@ -25,7 +26,10 @@ internal sealed class SourceChangeHandler(LinkIndexer indexer, ILogger<SourceCha
 
     public void Handle(ContentUnpublishedNotification notification) => Reindex(notification.UnpublishedEntities);
 
-    public void Handle(ContentMovedNotification notification) => Reindex(notification.MoveInfoCollection.Select(m => m.Entity));
+    // A move within the tree changes neither the links nor the publish state of a document; only a document restored
+    // from the recycle bin lost its rows (when it was trashed). Descendants are in the collection too.
+    public void Handle(ContentMovedNotification notification)
+        => Reindex(notification.MoveInfoCollection.Where(m => WasInRecycleBin(m.OriginalPath)).Select(m => m.Entity));
 
     // Descendants keep their rows until the next full scan; sources in the recycle bin are hidden when querying.
     public void Handle(ContentMovedToRecycleBinNotification notification) => Remove(notification.MoveInfoCollection.Select(m => m.Entity.Key));
@@ -33,6 +37,9 @@ internal sealed class SourceChangeHandler(LinkIndexer indexer, ILogger<SourceCha
     public void Handle(ContentDeletedNotification notification) => Remove(notification.DeletedEntities.Select(c => c.Key));
 
     public void Handle(ContentEmptiedRecycleBinNotification notification) => Remove(notification.DeletedEntities.Select(c => c.Key));
+
+    internal static bool WasInRecycleBin(string originalPath)
+        => originalPath.Split(',').Contains(UmbracoConstants.System.RecycleBinContentString);
 
     private void Reindex(IEnumerable<IContent> documents)
     {
