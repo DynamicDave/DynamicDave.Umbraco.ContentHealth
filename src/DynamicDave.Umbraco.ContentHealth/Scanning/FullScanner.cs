@@ -3,12 +3,14 @@ using DynamicDave.Umbraco.ContentHealth.Models;
 using DynamicDave.Umbraco.ContentHealth.Persistence;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Core.Services.Navigation;
 using UmbracoConstants = Umbraco.Cms.Core.Constants;
 
 namespace DynamicDave.Umbraco.ContentHealth.Scanning;
 
 public sealed class FullScanner(
     IContentService contentService,
+    IDocumentNavigationQueryService documentNavigation,
     LinkIndexer indexer,
     LinkIndexRepository repository,
     ScanStateStore store,
@@ -55,11 +57,24 @@ public sealed class FullScanner(
         }
         while (pageIndex * PageSize < total);
 
-        var removed = repository.RemoveSourcesExcept(visited);
+        var stale = SelectStaleSources(repository.GetDistinctSourceKeys(), visited, key => documentNavigation.TryGetParentKey(key, out _));
+        if (stale.Count > 0)
+        {
+            repository.RemoveSources(stale);
+        }
+
+        var removed = stale.Count;
         var completed = state with { Phase = ScanPhase.Idle, CompletedUtc = UtcNow(), HeartbeatUtc = UtcNow(), LastError = null };
         store.Save(completed);
         LogSummary(completed, indexed, removed);
     }
+
+    /// <summary>
+    /// Offset paging can skip documents when content changes during the scan, so a source is only stale when it was
+    /// not visited and no longer exists outside the recycle bin.
+    /// </summary>
+    internal static IReadOnlyList<Guid> SelectStaleSources(IEnumerable<Guid> indexedSourceKeys, IReadOnlySet<Guid> visited, Func<Guid, bool> existsInTree)
+        => indexedSourceKeys.Where(key => !visited.Contains(key) && !existsInTree(key)).ToList();
 
     private void LogSummary(ScanState completed, int indexed, int removedSources)
     {

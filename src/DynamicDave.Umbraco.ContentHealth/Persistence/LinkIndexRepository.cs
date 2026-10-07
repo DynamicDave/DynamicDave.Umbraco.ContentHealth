@@ -35,18 +35,6 @@ public sealed class LinkIndexRepository(IScopeProvider scopeProvider)
         scope.Complete();
     }
 
-    /// <summary>Removes the rows of every source not in <paramref name="keep"/>; returns the number of removed sources.</summary>
-    public int RemoveSourcesExcept(IReadOnlySet<Guid> keep)
-    {
-        var stale = GetDistinctSourceKeys().Where(key => !keep.Contains(key)).ToList();
-        if (stale.Count > 0)
-        {
-            RemoveSources(stale);
-        }
-
-        return stale.Count;
-    }
-
     public List<LinkDto> GetBySource(Guid sourceKey) => Fetch(sql => sql.Where<LinkDto>(x => x.SourceKey == sourceKey));
 
     public List<LinkDto> GetByTarget(Guid targetKey) => Fetch(sql => sql.Where<LinkDto>(x => x.TargetKey == targetKey));
