@@ -1,5 +1,4 @@
 {
-  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
   "id": "DynamicDave.Umbraco.ContentHealth",
   "name": "DynamicDave.Umbraco.ContentHealth",
   "version": "18.0.2",
@@ -10,7 +9,7 @@
   },
   "extensions": [
     {
-      "name": "ContentHealth",
+      "name": "Content Health",
       "alias": "DynamicDave.Umbraco.ContentHealth.Bundle",
       "type": "bundle",
       "js": "/App_Plugins/DynamicDaveUmbracoContentHealth/dynamic-dave-umbraco-content-health.js"
