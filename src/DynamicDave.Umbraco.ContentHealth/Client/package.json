@@ -1,7 +1,7 @@
 {
   "name": "dynamic-dave-umbraco-content-health",
   "private": true,
-  "version": "18.0.0",
+  "version": "18.0.2",
   "type": "module",
   "scripts": {
     "watch": "tsc && vite build --watch",

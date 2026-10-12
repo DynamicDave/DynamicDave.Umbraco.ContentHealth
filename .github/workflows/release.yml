@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes to nuget.org when a version tag is pushed, e.g. `git tag v18.0.0 && git push origin v18.0.0`.
+# Publishes to nuget.org when a version tag is pushed, e.g. `git tag v18.0.2 && git push origin v18.0.2`.
 # Authentication uses NuGet trusted publishing (OIDC): no API key is stored in this repository.
 on:
   push:

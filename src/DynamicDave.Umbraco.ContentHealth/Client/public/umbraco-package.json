@@ -2,7 +2,7 @@
   "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
   "id": "DynamicDave.Umbraco.ContentHealth",
   "name": "DynamicDave.Umbraco.ContentHealth",
-  "version": "18.0.0",
+  "version": "18.0.2",
   "allowTelemetry": true,
   "AuthorDetails": {
     "Name": "Dynamic Dave",
