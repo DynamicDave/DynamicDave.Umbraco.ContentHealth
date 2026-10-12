@@ -16,15 +16,15 @@
   "Screenshots": [
     {
       "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-1.jpg",
-      "Caption": "All broken internal links with counts, filters and CSV export"
+      "Caption": "Links to deleted pages and media, with counts, filters and CSV export"
     },
     {
       "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-2.jpg",
-      "Caption": "A page's broken links and the pages that link to it"
+      "Caption": "Links to pages and media in the recycle bin"
     },
     {
       "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-3.jpg",
-      "Caption": "A page's unpublished targets and the pages that link to it"
+      "Caption": "Links to unpublished pages, live or draft only"
     },
     {
       "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-4.jpg",
