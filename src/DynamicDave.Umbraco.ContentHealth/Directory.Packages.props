@@ -4,8 +4,8 @@
     <!-- Allow floating versions so extensions can align with the host Umbraco project's package versions -->
     <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
     <!-- Supported Umbraco versions. The package is built against the lowest version in the range; the site that
-         installs it resolves the actual version. Override to compile against another version, e.g.
-         dotnet build -p:UmbracoVersion=18.2.1 -->
+         installs it resolves the actual version. CI also builds it against the newest 18.x. Override to compile
+         against another version, e.g. dotnet build -p:UmbracoVersion=18.2.1 -->
     <UmbracoVersion Condition="'$(UmbracoVersion)' == ''">[17.0.0, 19.0.0)</UmbracoVersion>
   </PropertyGroup>
   
