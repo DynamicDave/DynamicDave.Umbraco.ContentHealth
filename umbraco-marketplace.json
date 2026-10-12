@@ -15,12 +15,20 @@
   },
   "Screenshots": [
     {
-      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/link-health-dashboard.png",
+      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-1.jpg",
       "Caption": "All broken internal links with counts, filters and CSV export"
     },
     {
-      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/link-health-document.png",
+      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-2.jpg",
       "Caption": "A page's broken links and the pages that link to it"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-3.jpg",
+      "Caption": "A page's unpublished targets and the pages that link to it"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/DynamicDave/DynamicDave.Umbraco.ContentHealth/main/docs/screenshots/screenshot-4.jpg",
+      "Caption": "An overview of all broken links in the site"
     }
   ]
 }
