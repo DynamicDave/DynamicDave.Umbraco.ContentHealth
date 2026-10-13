@@ -30,6 +30,7 @@ export type BrokenLinksResponse = {
 export type DocumentLinkHealthResponse = {
     outgoing: Array<BrokenLinkModel>;
     incoming: Array<IncomingLinkModel>;
+    incomingTotal: number;
     incomingHiddenCount: number;
 };
 
@@ -150,11 +151,18 @@ export type GetDocumentData = {
     path: {
         key: string;
     };
-    query?: never;
+    query?: {
+        skip?: number;
+        take?: number;
+    };
     url: '/umbraco/dynamicdave-contenthealth/api/v1/document/{key}';
 };
 
 export type GetDocumentErrors = {
+    /**
+     * Bad Request
+     */
+    400: unknown;
     /**
      * The resource is protected and requires an authentication token
      */

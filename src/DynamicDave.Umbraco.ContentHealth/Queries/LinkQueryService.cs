@@ -52,11 +52,21 @@ public sealed class LinkQueryService(
         };
     }
 
-    /// <summary>Broken links in the document, and every visible link to it. The caller checks access to the document.</summary>
-    public DocumentLinkHealthResponse GetDocument(Guid documentKey, IUser user)
+    /// <summary>
+    /// Broken links in the document, and one page of the visible links to it. The caller checks access to the document.
+    /// </summary>
+    public DocumentLinkHealthResponse GetDocument(Guid documentKey, IUser user, int skip, int take)
     {
         var outgoing = ToModels(FilterVisible(repository.GetBySource(documentKey).Where(r => r.Status != (int)LinkStatus.Ok).ToList(), user));
         var incoming = FilterVisible(repository.GetByTarget(documentKey).Where(r => r.SourceKey != documentKey).ToList(), user);
+
+        // A widely linked page can have thousands of incoming links: build full models (breadcrumbs, property names)
+        // for the requested page only.
+        var (incomingTotal, pageRows) = IncomingLinkPage.Select(incoming.Rows, key => incoming.Sources[key].Name ?? string.Empty, skip, take);
+        var page = new Visibility(
+            pageRows,
+            pageRows.Select(r => r.SourceKey).Distinct().ToDictionary(key => key, key => incoming.Sources[key]),
+            incoming.HiddenSourceCount);
 
         return new DocumentLinkHealthResponse
         {
@@ -64,9 +74,7 @@ public sealed class LinkQueryService(
                 .OrderBy(l => l.PropertyName, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(l => l.Culture, StringComparer.Ordinal)
                 .ToList(),
-            Incoming = ToModels(incoming)
-                .OrderBy(l => l.SourceName, StringComparer.CurrentCultureIgnoreCase)
-                .ThenBy(l => l.PropertyName, StringComparer.CurrentCultureIgnoreCase)
+            Incoming = ToModels(page)
                 .Select(l => new IncomingLinkModel
                 {
                     SourceKey = l.SourceKey,
@@ -77,6 +85,7 @@ public sealed class LinkQueryService(
                     Status = l.Status,
                 })
                 .ToList(),
+            IncomingTotal = incomingTotal,
             IncomingHiddenCount = incoming.HiddenSourceCount,
         };
     }

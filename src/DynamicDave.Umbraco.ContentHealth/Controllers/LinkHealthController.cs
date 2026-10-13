@@ -27,7 +27,6 @@ public class LinkHealthController(
     IEntityService entityService,
     TimeProvider timeProvider) : DynamicDaveUmbracoContentHealthApiControllerBase
 {
-    private const int MaxTake = 100;
     private const int MaxExportRows = 50_000;
 
     [HttpGet("summary")]
@@ -52,7 +51,7 @@ public class LinkHealthController(
         [FromQuery] int skip = 0,
         [FromQuery] int take = 25)
     {
-        if (skip < 0 || take < 1 || take > MaxTake || !TryCreateQuery(status, version, documentType, orderBy, descending, out var query)) return BadRequest();
+        if (!Paging.IsValid(skip, take) || !TryCreateQuery(status, version, documentType, orderBy, descending, out var query)) return BadRequest();
         if (CurrentUser() is not { } user) return Unauthorized();
 
         return Ok(BrokenLinkFilter.Page(BrokenLinkFilter.Apply(queries.GetVisibleProblems(user), query), skip, take));
@@ -78,15 +77,17 @@ public class LinkHealthController(
 
     [HttpGet("document/{key:guid}")]
     [ProducesResponseType<DocumentLinkHealthResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetDocument(Guid key)
+    public async Task<IActionResult> GetDocument(Guid key, [FromQuery] int skip = 0, [FromQuery] int take = 25)
     {
+        if (!Paging.IsValid(skip, take)) return BadRequest();
         if (!await CanBrowseAsync(key)) return StatusCode(StatusCodes.Status403Forbidden);
         if (entityService.Get(key, UmbracoObjectTypes.Document) is null) return NotFound();
         if (CurrentUser() is not { } user) return Unauthorized();
 
-        return Ok(queries.GetDocument(key, user));
+        return Ok(queries.GetDocument(key, user, skip, take));
     }
 
     [HttpPost("scan")]

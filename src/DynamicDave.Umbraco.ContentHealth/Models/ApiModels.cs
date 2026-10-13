@@ -41,7 +41,10 @@ public sealed class IncomingLinkModel
 public sealed class DocumentLinkHealthResponse
 {
     public required IReadOnlyList<BrokenLinkModel> Outgoing { get; init; }
+    /// <summary>One page of the visible links to the document, ordered by linking page.</summary>
     public required IReadOnlyList<IncomingLinkModel> Incoming { get; init; }
+    /// <summary>Number of visible links to the document, across all pages.</summary>
+    public required int IncomingTotal { get; init; }
     /// <summary>Number of linking pages the user may not see.</summary>
     public required int IncomingHiddenCount { get; init; }
 }
