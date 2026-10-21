@@ -7,6 +7,6 @@
     <Company>DynamicDave</Company>
     <Copyright>Copyright (c) DynamicDave</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Version>18.0.2</Version>
+    <Version>18.0.3</Version>
   </PropertyGroup>
 </Project>
